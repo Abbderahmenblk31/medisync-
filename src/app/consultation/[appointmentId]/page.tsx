@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Appointment, Patient, PrescriptionItem, Vitals } from '@/lib/types';
 import { COMMON_ICD10 } from '@/lib/data/mock-clinical-data';
+import { VitalsHud } from '@/components/medical/VitalsHud';
+import { medicalAudio } from '@/lib/sound/medical-audio';
 
 function ConsultationContent() {
   const params = useParams();
@@ -86,18 +88,8 @@ function ConsultationContent() {
       .finally(() => setLoading(false));
   }, [appointmentId]);
 
-  const updateWeightHeight = (weight: number, height: number) => {
-    const heightM = height / 100;
-    const bmiVal = heightM > 0 ? Math.round((weight / (heightM * heightM)) * 10) / 10 : 0;
-    setVitals((prev) => ({
-      ...prev,
-      weightKg: weight,
-      heightCm: height,
-      bmi: bmiVal,
-    }));
-  };
-
   const addPrescriptionItem = () => {
+    medicalAudio.playTactileClick();
     const newItem: PrescriptionItem = {
       id: `rx-${Date.now()}`,
       medicationName: '',
@@ -110,6 +102,7 @@ function ConsultationContent() {
   };
 
   const removePrescriptionItem = (id: string) => {
+    medicalAudio.playTactileClick();
     setPrescriptions(prescriptions.filter((p) => p.id !== id));
   };
 
@@ -149,6 +142,7 @@ function ConsultationContent() {
 
       const data = await res.json();
       if (data.success) {
+        medicalAudio.playSuccessChime();
         setSuccessSaved(true);
         setTimeout(() => {
           router.push('/billing');
@@ -164,6 +158,7 @@ function ConsultationContent() {
   };
 
   const handlePrint = () => {
+    medicalAudio.playTactileClick();
     window.print();
   };
 
@@ -189,20 +184,20 @@ function ConsultationContent() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Top Banner: Patient Info Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 clinical-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-600 to-teal-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-sky-500/20">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-600 to-teal-500 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-sky-500/20">
             {patient.fullName.charAt(0)}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">
                 {patient.fullName}
               </h2>
-              <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+              <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
                 {patient.id}
               </span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
                 Blood: {patient.bloodGroup}
               </span>
             </div>
@@ -215,7 +210,7 @@ function ConsultationContent() {
         <div className="flex items-center gap-3">
           <button
             onClick={handlePrint}
-            className="no-print px-3.5 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all flex items-center gap-1.5"
+            className="no-print px-4 py-2.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all flex items-center gap-1.5"
           >
             <span>🖨️</span>
             <span>Print Rx Certificate</span>
@@ -224,7 +219,7 @@ function ConsultationContent() {
           <button
             onClick={handleSaveConsultation}
             disabled={saving}
-            className="no-print px-5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition-all flex items-center gap-2"
+            className="no-print px-5 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition-all flex items-center gap-2"
           >
             {saving ? 'Finalizing Chart...' : successSaved ? '✓ Saved! Redirecting...' : 'Complete & Generate Bill →'}
           </button>
@@ -233,144 +228,25 @@ function ConsultationContent() {
 
       {/* Allergies Warning Alert */}
       {patient.allergies && patient.allergies.length > 0 && (
-        <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl flex items-center gap-3 text-rose-800 dark:text-rose-300 text-xs">
-          <span className="text-lg">⚠️</span>
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-3 text-rose-800 dark:text-rose-300 text-xs">
+          <span className="text-2xl">⚠️</span>
           <div>
             <strong className="font-bold">CRITICAL PATIENT ALLERGY WARNING:</strong>{' '}
-            {patient.allergies.join(', ')} — Exercise extreme caution during pharmaceutical prescription.
+            {patient.allergies.join(', ')} — Exercise strict contraindication screening before pharmaceutical prescription.
           </div>
         </div>
       )}
 
       {/* Printable Area - Main Medical Form */}
       <div className="printable-area space-y-6">
-        {/* Section 1: Clinical Vitals Monitor */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 clinical-card space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <span>🩺</span>
-              <span>Baseline Clinical Telemetry & Vitals</span>
-            </h3>
-            <span className="text-xs text-slate-400">Captured at intake</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-            {/* Blood Pressure */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
-              <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                Blood Pressure
-              </label>
-              <input
-                type="text"
-                value={vitals.bloodPressure}
-                onChange={(e) => setVitals({ ...vitals, bloodPressure: e.target.value })}
-                className="w-full text-sm font-bold bg-transparent border-none text-slate-900 dark:text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-slate-400">mmHg</span>
-            </div>
-
-            {/* Heart Rate */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
-              <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                Heart Rate
-              </label>
-              <input
-                type="number"
-                value={vitals.heartRate}
-                onChange={(e) => setVitals({ ...vitals, heartRate: Number(e.target.value) })}
-                className="w-full text-sm font-bold bg-transparent border-none text-slate-900 dark:text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">bpm (Norm)</span>
-            </div>
-
-            {/* Temperature */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
-              <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                Temp
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                value={vitals.temperature}
-                onChange={(e) => setVitals({ ...vitals, temperature: Number(e.target.value) })}
-                className="w-full text-sm font-bold bg-transparent border-none text-slate-900 dark:text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-slate-400">°C</span>
-            </div>
-
-            {/* SpO2 */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
-              <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                SpO2 Pulse
-              </label>
-              <input
-                type="number"
-                value={vitals.spo2}
-                onChange={(e) => setVitals({ ...vitals, spo2: Number(e.target.value) })}
-                className="w-full text-sm font-bold bg-transparent border-none text-slate-900 dark:text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">% Oxygen</span>
-            </div>
-
-            {/* Respiratory */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
-              <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                Resp. Rate
-              </label>
-              <input
-                type="number"
-                value={vitals.respiratoryRate}
-                onChange={(e) => setVitals({ ...vitals, respiratoryRate: Number(e.target.value) })}
-                className="w-full text-sm font-bold bg-transparent border-none text-slate-900 dark:text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-slate-400">breaths/m</span>
-            </div>
-
-            {/* Weight */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
-              <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                Weight
-              </label>
-              <input
-                type="number"
-                value={vitals.weightKg}
-                onChange={(e) => updateWeightHeight(Number(e.target.value), vitals.heightCm)}
-                className="w-full text-sm font-bold bg-transparent border-none text-slate-900 dark:text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-slate-400">kg</span>
-            </div>
-
-            {/* Height */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
-              <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                Height
-              </label>
-              <input
-                type="number"
-                value={vitals.heightCm}
-                onChange={(e) => updateWeightHeight(vitals.weightKg, Number(e.target.value))}
-                className="w-full text-sm font-bold bg-transparent border-none text-slate-900 dark:text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-slate-400">cm</span>
-            </div>
-
-            {/* Calculated BMI */}
-            <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60">
-              <label className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block mb-1">
-                BMI Index
-              </label>
-              <div className="text-sm font-bold text-sky-700 dark:text-sky-300">
-                {vitals.bmi}
-              </div>
-              <span className="text-[10px] font-semibold text-sky-600">
-                {vitals.bmi < 18.5 ? 'Underweight' : vitals.bmi < 25 ? 'Normal' : 'Overweight'}
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* Section 1: Tactical Biometrics HUD */}
+        <VitalsHud
+          vitals={vitals}
+          onChange={(newVitals) => setVitals(newVitals)}
+        />
 
         {/* Section 2: Clinical Assessment & ICD-10 Coding */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 clinical-card space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
               <span>📋</span>
@@ -443,7 +319,7 @@ function ConsultationContent() {
         </div>
 
         {/* Section 3: e-Prescriptions (Rx) Suite */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 clinical-card space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
@@ -456,7 +332,7 @@ function ConsultationContent() {
             <button
               type="button"
               onClick={addPrescriptionItem}
-              className="no-print px-3 py-1.5 text-xs font-semibold bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 hover:bg-sky-100 rounded-lg transition-colors border border-sky-200 dark:border-sky-800 flex items-center gap-1.5"
+              className="no-print px-3.5 py-1.5 text-xs font-semibold bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 hover:bg-sky-100 rounded-lg transition-colors border border-sky-200 dark:border-sky-800 flex items-center gap-1.5"
             >
               <span>+ Add Medication</span>
             </button>
@@ -533,7 +409,7 @@ function ConsultationContent() {
             ))}
           </div>
 
-          <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+          <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Recommended Follow-Up Appointment:
