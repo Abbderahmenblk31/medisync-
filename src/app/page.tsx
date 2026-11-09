@@ -6,8 +6,10 @@ import { ClinicMetrics, Appointment } from '@/lib/types';
 import { EcgliveMonitor } from '@/components/medical/EcgliveMonitor';
 import { AnatomyMap, BodyZone } from '@/components/medical/AnatomyMap';
 import { medicalAudio } from '@/lib/sound/medical-audio';
+import { useLanguage } from '@/lib/context/LanguageContext';
 
 export default function DashboardPage() {
+  const { t, locale, formatCurrency } = useLanguage();
   const [metrics, setMetrics] = useState<ClinicMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeZone, setActiveZone] = useState<BodyZone>('ALL');
@@ -75,20 +77,20 @@ export default function DashboardPage() {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-          Priority 1 • Triage Active
+          {locale === 'ar' ? 'أولوية 1 • كشف سريري مباشر' : 'Priority 1 • Triage Active'}
         </span>
       );
     }
     if (apt.status === 'COMPLETED') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          ✓ Discharged
+          {locale === 'ar' ? '✓ تم الكشف والوصفة' : '✓ Discharged'}
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-        Standard Intake
+        {locale === 'ar' ? 'في الانتظار' : 'Standard Intake'}
       </span>
     );
   };
@@ -105,34 +107,36 @@ export default function DashboardPage() {
         <div className="space-y-1 z-10">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase bg-sky-500/20 text-sky-300 border border-sky-400/30">
-              Station Alpha • Ward B
+              {t.activeStation}
             </span>
             <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              Clinic Live
+              {t.liveClinic}
             </span>
           </div>
 
           <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-white">
-            Clinical Command & Telemetry Deck
+            {locale === 'ar' ? 'مركز قيادة العيادة والتحكم السريري' : 'Clinical Command & Telemetry Deck'}
           </h1>
           <p className="text-xs text-slate-300 max-w-xl">
-            Real-time biometric synthesis, anatomical symptom mapping, and immediate physician consultation dispatch.
+            {locale === 'ar'
+              ? 'متابعة فورية للمؤشرات الحيوية، فحص القلب ECG، والفرز التشريحي لمرضى العيادة والكنام CNAM.'
+              : 'Real-time biometric synthesis, anatomical symptom mapping, and immediate physician consultation dispatch.'}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 z-10">
           <div className="px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-center">
-            <div className="text-[10px] uppercase font-bold text-slate-300">Wait Room</div>
+            <div className="text-[10px] uppercase font-bold text-slate-300">{t.kpiWaitingRoom}</div>
             <div className="text-lg font-black font-mono text-amber-300">
               {loading ? '...' : metrics?.inWaitingRoom ?? 0}
             </div>
           </div>
 
           <div className="px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-center">
-            <div className="text-[10px] uppercase font-bold text-slate-300">Today's Revenue</div>
+            <div className="text-[10px] uppercase font-bold text-slate-300">{t.kpiRevenue}</div>
             <div className="text-lg font-black font-mono text-emerald-300">
-              ${loading ? '...' : metrics?.todayRevenue?.toFixed(0) ?? '0'}
+              {loading ? '...' : formatCurrency(metrics?.todayRevenue || 0)}
             </div>
           </div>
 
@@ -142,7 +146,7 @@ export default function DashboardPage() {
             className="px-5 py-2.5 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs shadow-lg shadow-sky-500/30 transition-all flex items-center gap-2"
           >
             <span>🩺</span>
-            <span>Launch Active EMR</span>
+            <span>{locale === 'ar' ? 'بدء الفحص السريري' : 'Launch Active EMR'}</span>
           </Link>
         </div>
       </div>
@@ -153,43 +157,47 @@ export default function DashboardPage() {
         <div className="lg:col-span-7 space-y-6">
           <EcgliveMonitor
             bpm={74}
-            label="Live Cardiac Telemetry • Lead II"
+            label={t.liveEcgTitle}
             leadName="LEAD II - V5 / Ambulatory"
             isPulsingAudio={false}
           />
 
-          {/* Quick Metrics Ribbon (Minimalist Medical Strip) */}
+          {/* Quick Metrics Ribbon */}
           <div className="grid grid-cols-3 gap-3">
             <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Total Patients
+                {t.kpiPatients}
               </span>
               <div className="text-2xl font-black font-mono text-slate-900 dark:text-white mt-1">
                 {metrics?.totalPatientsRegistered ?? 0}
               </div>
               <span className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">
-                Active dossiers
+                {locale === 'ar' ? 'ملفات نشطة' : 'Active dossiers'}
               </span>
             </div>
 
             <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Completed
+                {t.kpiCompleted}
               </span>
               <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">
                 {metrics?.completedConsultations ?? 0}
               </div>
-              <span className="text-[10px] text-emerald-600 font-medium">e-Rx dispatched</span>
+              <span className="text-[10px] text-emerald-600 font-medium">
+                {locale === 'ar' ? 'وصفات تم تسليمها' : 'e-Rx dispatched'}
+              </span>
             </div>
 
             <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Active Specialties
+                {t.kpiActiveSpecialties}
               </span>
               <div className="text-2xl font-black font-mono text-indigo-600 dark:text-indigo-400 mt-1">
-                5 Depts
+                {locale === 'ar' ? '5 أقسام' : '5 Depts'}
               </div>
-              <span className="text-[10px] text-slate-400 font-medium">100% On-Duty</span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                {locale === 'ar' ? 'أطباء في الخدمة' : '100% On-Duty'}
+              </span>
             </div>
           </div>
         </div>
@@ -219,15 +227,15 @@ export default function DashboardPage() {
             </div>
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Immediate Patient Encounter Queue</span>
+                <span>{t.liveQueueTitle}</span>
                 {activeZone !== 'ALL' && (
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
-                    Filtered: {activeZone}
+                    {locale === 'ar' ? `مفلتر: ${activeZone}` : `Filtered: ${activeZone}`}
                   </span>
                 )}
               </h3>
               <p className="text-xs text-slate-400">
-                Sorted by appointment slot & vital severity
+                {t.liveQueueSubtitle}
               </p>
             </div>
           </div>
@@ -237,7 +245,7 @@ export default function DashboardPage() {
               href="/appointments"
               className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-sky-600 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700"
             >
-              Full Calendar →
+              {locale === 'ar' ? 'عرض جدول المواعيد بالكامل ←' : 'Full Calendar →'}
             </Link>
           </div>
         </div>
@@ -255,7 +263,9 @@ export default function DashboardPage() {
                       {new Date(apt.scheduledTime).getHours().toString().padStart(2, '0')}:
                       {new Date(apt.scheduledTime).getMinutes().toString().padStart(2, '0')}
                     </span>
-                    <span className="text-[9px] text-slate-400 uppercase">Slot</span>
+                    <span className="text-[9px] text-slate-400 uppercase">
+                      {locale === 'ar' ? 'توقيت' : 'Slot'}
+                    </span>
                   </div>
 
                   <div>
@@ -270,18 +280,18 @@ export default function DashboardPage() {
                     </div>
 
                     <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                      Chief Complaint:{' '}
+                      {locale === 'ar' ? 'الشكوى الأولية:' : 'Chief Complaint:'}{' '}
                       <span className="font-medium text-slate-900 dark:text-white">
                         {apt.reasonForVisit}
                       </span>
                     </p>
 
                     <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-3">
-                      <span>Attending: <strong>{apt.doctorName}</strong></span>
+                      <span>{locale === 'ar' ? 'الطبيب المعالج:' : 'Attending:'} <strong>{apt.doctorName}</strong></span>
                       <span>•</span>
                       <span>{apt.department} ({apt.roomNumber})</span>
                       <span>•</span>
-                      <span>Consult Fee: ${apt.consultationFee}</span>
+                      <span>{locale === 'ar' ? 'تعريفة الكشف:' : 'Consult Fee:'} {formatCurrency(apt.consultationFee)}</span>
                     </div>
                   </div>
                 </div>
@@ -292,20 +302,22 @@ export default function DashboardPage() {
                     onClick={() => medicalAudio.playTactileClick()}
                     className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-sky-600 dark:hover:bg-sky-500 text-white font-semibold text-xs transition-all flex items-center gap-2 shadow-xs"
                   >
-                    <span>Open Clinical Room</span>
-                    <span>→</span>
+                    <span>{locale === 'ar' ? 'فتح ملف الفحص الطبي' : 'Open Clinical Room'}</span>
+                    <span>{locale === 'ar' ? '←' : '→'}</span>
                   </Link>
                 </div>
               </div>
             ))
           ) : (
             <div className="p-12 text-center text-slate-400 text-sm">
-              No active patients match the selected anatomical quadrant ({activeZone}).
+              {locale === 'ar'
+                ? `لا توجد حالات حالية تطابق العضو المحدد (${activeZone}).`
+                : `No active patients match the selected anatomical quadrant (${activeZone}).`}
               <button
                 onClick={() => setActiveZone('ALL')}
                 className="block mx-auto mt-2 text-sky-600 text-xs font-bold underline"
               >
-                Reset Anatomical Filter
+                {locale === 'ar' ? 'إعادة ضبط الفلتر التشريحي' : 'Reset Anatomical Filter'}
               </button>
             </div>
           )}

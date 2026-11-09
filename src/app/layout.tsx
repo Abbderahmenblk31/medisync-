@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/lib/context/ThemeContext';
+import { LanguageProvider } from '@/lib/context/LanguageContext';
 import { ClinicShell } from '@/components/layout/ClinicShell';
 
 export const metadata: Metadata = {
-  title: 'MediSync | Clinical EMR & Practice Management SaaS',
-  description: 'Enterprise Medical Records, Consultation Flow, and Healthcare Billing Platform',
+  title: 'MediSync | ميدي سينك لإدارة العيادات والملفات الطبية',
+  description: 'نظام إدارة العيادات، الفحص السريري، بطاقة الكنام CNAM، والوصفات الطبية الإلكترونية',
 };
 
 export default function RootLayout({
@@ -14,11 +15,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="antialiased min-h-screen">
-        <ThemeProvider>
-          <ClinicShell>{children}</ClinicShell>
-        </ThemeProvider>
+        <LanguageProvider>
+          <ThemeProvider>
+            <ClinicShell>{children}</ClinicShell>
+          </ThemeProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

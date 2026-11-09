@@ -27,9 +27,14 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Cairo", "Tajawal", "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif;
   overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* RTL Typography refinements */
+[dir="rtl"] {
+  letter-spacing: normal !important;
 }
 
 /* Light / Dark Mode Soft Scrollbar */
@@ -58,16 +63,6 @@ body {
 
 .dark .clinical-card {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-}
-
-/* Pulse animation for live clinic indicator */
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.05); }
-}
-
-.animate-pulse-subtle {
-  animation: pulse-subtle 2s infinite ease-in-out;
 }
 
 /* Print Styles for Prescriptions & Invoices */
