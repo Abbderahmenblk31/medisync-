@@ -229,3 +229,62 @@ export const COMMON_ICD10 = [
   'Z00.00 - General adult medical examination without abnormal findings',
 ];
 
+export const COMMON_CPT_CODES = [
+  { code: '99213', description: 'Office outpatient visit, low complexity, 20-29 mins', standardFee: 85.0 },
+  { code: '99214', description: 'Office outpatient visit, moderate complexity, 30-39 mins', standardFee: 130.0 },
+  { code: '99215', description: 'Office outpatient visit, high complexity, 40-54 mins', standardFee: 185.0 },
+  { code: '93000', description: '12-lead electrocardiogram (ECG) with interpretation & report', standardFee: 50.0 },
+  { code: '80061', description: 'Lipid panel blood diagnostic test', standardFee: 40.0 },
+  { code: '85025', description: 'Complete Blood Count (CBC) with automated differential', standardFee: 28.0 },
+  { code: '83036', description: 'Hemoglobin A1c (HbA1c) glycated protein test', standardFee: 32.0 },
+  { code: '71046', description: 'Chest X-Ray radiological examination, 2 views', standardFee: 95.0 },
+];
+
+export const INITIAL_LAB_ORDERS = [
+  {
+    id: 'LAB-3011',
+    appointmentId: 'APT-4091',
+    patientId: 'PT-1042',
+    patientName: 'Leila Khemir',
+    testName: 'Hemoglobin A1c (HbA1c Glycated)',
+    category: 'BIOCHEMISTRY' as const,
+    urgency: 'ROUTINE' as const,
+    status: 'COMPLETED' as const,
+    orderedByDoctor: 'Dr. Sofiene Jaziri',
+    orderedAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    results: '6.4%',
+    referenceRange: '< 5.7% (Normal), 5.7-6.4% (Prediabetes)',
+    abnormalFlag: true,
+  },
+  {
+    id: 'LAB-3012',
+    appointmentId: 'APT-4092',
+    patientId: 'PT-1043',
+    patientName: 'Tarek Ben Amor',
+    testName: 'Lipid Profile & Serum Electrolytes',
+    category: 'BIOCHEMISTRY' as const,
+    urgency: 'URGENT' as const,
+    status: 'IN_ANALYSIS' as const,
+    orderedByDoctor: 'Dr. Mehdi Slim',
+    orderedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    results: 'Pending centrifuge separation',
+    referenceRange: 'Total Cholesterol < 200 mg/dL',
+    abnormalFlag: false,
+  },
+  {
+    id: 'LAB-3013',
+    appointmentId: 'APT-4090',
+    patientId: 'PT-1045',
+    patientName: 'Nadia Chaabane',
+    testName: 'Serum Total IgE & Allergen Screen',
+    category: 'IMMUNOLOGY' as const,
+    urgency: 'ROUTINE' as const,
+    status: 'SAMPLE_COLLECTED' as const,
+    orderedByDoctor: 'Dr. Sarah Mansour',
+    orderedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    referenceRange: '< 100 IU/mL',
+    abnormalFlag: false,
+  },
+];
+
+

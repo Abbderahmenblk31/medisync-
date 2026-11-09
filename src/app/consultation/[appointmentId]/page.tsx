@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Appointment, Patient, PrescriptionItem, Vitals } from '@/lib/types';
-import { COMMON_ICD10 } from '@/lib/data/mock-clinical-data';
+import { COMMON_ICD10, COMMON_CPT_CODES } from '@/lib/data/mock-clinical-data';
 import { VitalsHud } from '@/components/medical/VitalsHud';
 import { medicalAudio } from '@/lib/sound/medical-audio';
 
@@ -31,11 +31,28 @@ function ConsultationContent() {
     bmi: 22.9,
   });
 
-  // Clinical Diagnosis State
+  // EPIC SYSTEMS SOAP STATE:
+  // S - Subjective
   const [chiefComplaint, setChiefComplaint] = useState('');
+  const [hpiText, setHpiText] = useState('Onset 4 days ago, gradual progression without fever.');
+  const [painLevel, setPainLevel] = useState(3); // 0 to 10
+
+  // O - Objective
+  const [examNormal, setExamNormal] = useState({
+    heent: true,
+    cardiac: true,
+    pulmonary: true,
+    abdominal: true,
+  });
+
+  // A - Assessment
   const [clinicalDiagnosis, setClinicalDiagnosis] = useState('');
   const [icd10Code, setIcd10Code] = useState(COMMON_ICD10[0]);
   const [clinicalNotes, setClinicalNotes] = useState('');
+
+  // P - Plan & AthenaHealth Billing
+  const [selectedCpt, setSelectedCpt] = useState(COMMON_CPT_CODES[1].code); // 99214
+  const [orderedLabs, setOrderedLabs] = useState<string[]>(['CBC with Differential']);
   const [followUpDate, setFollowUpDate] = useState('2026-11-24');
 
   // e-Prescription state
@@ -121,6 +138,8 @@ function ConsultationContent() {
 
     setSaving(true);
     try {
+      const cptObj = COMMON_CPT_CODES.find((c) => c.code === selectedCpt);
+
       const res = await fetch('/api/records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,8 +153,10 @@ function ConsultationContent() {
           vitals,
           clinicalDiagnosis,
           icd10Code,
-          clinicalNotes,
+          clinicalNotes: `HPI: ${hpiText} | Pain: ${painLevel}/10 | Notes: ${clinicalNotes}`,
           prescriptions,
+          cptCode: selectedCpt,
+          consultationFee: cptObj?.standardFee || 100.0,
           followUpDate,
         }),
       });
@@ -160,6 +181,14 @@ function ConsultationContent() {
   const handlePrint = () => {
     medicalAudio.playTactileClick();
     window.print();
+  };
+
+  const getPainEmoji = (level: number) => {
+    if (level === 0) return '😊 No Pain (0)';
+    if (level <= 3) return '🙂 Mild Pain (1-3)';
+    if (level <= 6) return '😐 Moderate Pain (4-6)';
+    if (level <= 8) return '😣 Severe Pain (7-8)';
+    return '😫 Worst Possible Pain (9-10)';
   };
 
   if (loading) {
@@ -200,6 +229,9 @@ function ConsultationContent() {
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
                 Blood: {patient.bloodGroup}
               </span>
+              <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-full border border-sky-200 dark:border-sky-800">
+                Epic Hyperspace Format
+              </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               DOB: {patient.dateOfBirth} • Sex: {patient.gender} • Phone: {patient.phone} • Attending: Dr. {appointment.doctorName} ({appointment.department})
@@ -207,10 +239,20 @@ function ConsultationContent() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Telehealth Call Shortcut (Doctolib style) */}
+          <Link
+            href={`/telehealth/${appointment.id}`}
+            onClick={() => medicalAudio.playTactileClick()}
+            className="no-print px-3.5 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl transition-all flex items-center gap-1.5 shadow-xs"
+          >
+            <span>📹</span>
+            <span>Launch Video Call</span>
+          </Link>
+
           <button
             onClick={handlePrint}
-            className="no-print px-4 py-2.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all flex items-center gap-1.5"
+            className="no-print px-3.5 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all flex items-center gap-1.5"
           >
             <span>🖨️</span>
             <span>Print Rx Certificate</span>
@@ -219,7 +261,7 @@ function ConsultationContent() {
           <button
             onClick={handleSaveConsultation}
             disabled={saving}
-            className="no-print px-5 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition-all flex items-center gap-2"
+            className="no-print px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition-all flex items-center gap-2"
           >
             {saving ? 'Finalizing Chart...' : successSaved ? '✓ Saved! Redirecting...' : 'Complete & Generate Bill →'}
           </button>
@@ -239,25 +281,22 @@ function ConsultationContent() {
 
       {/* Printable Area - Main Medical Form */}
       <div className="printable-area space-y-6">
-        {/* Section 1: Tactical Biometrics HUD */}
-        <VitalsHud
-          vitals={vitals}
-          onChange={(newVitals) => setVitals(newVitals)}
-        />
-
-        {/* Section 2: Clinical Assessment & ICD-10 Coding */}
+        {/* EPIC SOAP SECTION 1: [S] - SUBJECTIVE */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <span>📋</span>
-              <span>Physician Assessment & ICD-10 Classification</span>
+              <span className="w-6 h-6 rounded-md bg-sky-600 text-white text-xs font-black flex items-center justify-center">
+                S
+              </span>
+              <span>Subjective (Patient Narrative & Pain Scale)</span>
             </h3>
+            <span className="text-[11px] font-mono text-slate-400">Epic Clinical Documentation</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Chief Complaint (Subjective Symptoms)
+                Chief Complaint (Reported Symptoms)
               </label>
               <input
                 type="text"
@@ -270,7 +309,128 @@ function ConsultationContent() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Standard ICD-10 Clinical Diagnostic Code
+                History of Present Illness (HPI)
+              </label>
+              <input
+                type="text"
+                value={hpiText}
+                onChange={(e) => setHpiText(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+              />
+            </div>
+          </div>
+
+          {/* Wong-Baker Pain Scale Slider */}
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Wong-Baker FACES® Pain Scale:
+              </span>
+              <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                {getPainEmoji(painLevel)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              value={painLevel}
+              onChange={(e) => {
+                medicalAudio.playTactileClick();
+                setPainLevel(Number(e.target.value));
+              }}
+              className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-rose-600"
+            />
+            <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+              <span>0 (None)</span>
+              <span>2</span>
+              <span>4</span>
+              <span>6</span>
+              <span>8</span>
+              <span>10 (Severe)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* EPIC SOAP SECTION 2: [O] - OBJECTIVE (Vitals HUD + Physical Exam) */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-md bg-teal-600 text-white text-xs font-black flex items-center justify-center">
+              O
+            </span>
+            <span className="font-bold text-sm text-slate-900 dark:text-white">
+              Objective Telemetry & Physical Examination
+            </span>
+          </div>
+
+          <VitalsHud
+            vitals={vitals}
+            onChange={(newVitals) => setVitals(newVitals)}
+          />
+
+          <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-3">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+              Physical Systems Review Checklist
+            </span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={examNormal.heent}
+                  onChange={(e) => setExamNormal({ ...examNormal, heent: e.target.checked })}
+                  className="rounded text-teal-600"
+                />
+                <span>HEENT Normal</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={examNormal.cardiac}
+                  onChange={(e) => setExamNormal({ ...examNormal, cardiac: e.target.checked })}
+                  className="rounded text-teal-600"
+                />
+                <span>S1/S2 Regular (No Murmurs)</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={examNormal.pulmonary}
+                  onChange={(e) => setExamNormal({ ...examNormal, pulmonary: e.target.checked })}
+                  className="rounded text-teal-600"
+                />
+                <span>Clear Lung Fields</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={examNormal.abdominal}
+                  onChange={(e) => setExamNormal({ ...examNormal, abdominal: e.target.checked })}
+                  className="rounded text-teal-600"
+                />
+                <span>Abdomen Soft / Non-tender</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* EPIC SOAP SECTION 3: [A] - ASSESSMENT */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="w-6 h-6 rounded-md bg-amber-500 text-white text-xs font-black flex items-center justify-center">
+                A
+              </span>
+              <span>Assessment & Clinical Diagnosis (ICD-10 Coding)</span>
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Standard ICD-10 Clinical Diagnostic Classification
               </label>
               <select
                 value={icd10Code}
@@ -288,77 +448,115 @@ function ConsultationContent() {
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Primary Clinical Diagnosis Formulation *
+              </label>
+              <input
+                type="text"
+                value={clinicalDiagnosis}
+                onChange={(e) => setClinicalDiagnosis(e.target.value)}
+                placeholder="e.g. Stage 1 Essential Hypertension with mild peripheral edema"
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+                required
+              />
+            </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Primary Clinical Diagnosis Formulation *
-            </label>
-            <input
-              type="text"
-              value={clinicalDiagnosis}
-              onChange={(e) => setClinicalDiagnosis(e.target.value)}
-              placeholder="e.g. Stage 1 Essential Hypertension with mild peripheral edema"
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Objective Clinical Findings & Progress Notes
+              Physician Diagnostic Notes
             </label>
             <textarea
-              rows={3}
+              rows={2}
               value={clinicalNotes}
               onChange={(e) => setClinicalNotes(e.target.value)}
-              placeholder="Patient is alert and oriented x3. Normal heart sounds S1/S2 without murmurs. Lung fields clear bilaterally..."
+              placeholder="Clinical differential impressions, etiology assessment..."
               className="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
             />
           </div>
         </div>
 
-        {/* Section 3: e-Prescriptions (Rx) Suite */}
+        {/* EPIC SOAP SECTION 4: [P] - PLAN & ATHENAHEALTH CPT CODING */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <span>💊</span>
-                <span>Electronic Prescription (e-Rx) Formulation</span>
-              </h3>
-              <p className="text-xs text-slate-500">Pharmacy-grade medication dispatch items</p>
-            </div>
+            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="w-6 h-6 rounded-md bg-indigo-600 text-white text-xs font-black flex items-center justify-center">
+                P
+              </span>
+              <span>Treatment Plan, e-Prescriptions & CPT Billing Code</span>
+            </h3>
 
-            <button
-              type="button"
-              onClick={addPrescriptionItem}
-              className="no-print px-3.5 py-1.5 text-xs font-semibold bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 hover:bg-sky-100 rounded-lg transition-colors border border-sky-200 dark:border-sky-800 flex items-center gap-1.5"
+            <Link
+              href="/labs"
+              className="no-print text-xs font-semibold text-sky-600 hover:underline flex items-center gap-1"
             >
-              <span>+ Add Medication</span>
-            </button>
+              <span>🧪 Requisition Lab Workup →</span>
+            </Link>
           </div>
 
-          <div className="space-y-3">
+          {/* AthenaHealth CPT Selection Bar */}
+          <div className="p-4 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">
+                AthenaHealth CPT Medical Billing Procedure Code:
+              </span>
+              <span className="text-xs font-mono font-bold text-indigo-700 dark:text-indigo-400">
+                Fee: ${COMMON_CPT_CODES.find((c) => c.code === selectedCpt)?.standardFee.toFixed(2)}
+              </span>
+            </div>
+            <select
+              value={selectedCpt}
+              onChange={(e) => {
+                medicalAudio.playTactileClick();
+                setSelectedCpt(e.target.value);
+              }}
+              className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 rounded-lg text-slate-900 dark:text-white font-medium"
+            >
+              {COMMON_CPT_CODES.map((cpt) => (
+                <option key={cpt.code} value={cpt.code}>
+                  CPT {cpt.code} — {cpt.description} (${cpt.standardFee})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* e-Prescription Items */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase">
+                Active Medications to Prescribe:
+              </span>
+              <button
+                type="button"
+                onClick={addPrescriptionItem}
+                className="no-print px-3 py-1 text-xs font-bold bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 rounded-lg border border-sky-200 dark:border-sky-800"
+              >
+                + Add Medication
+              </button>
+            </div>
+
             {prescriptions.map((rx) => (
               <div
                 key={rx.id}
-                className="p-4 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/30 grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
+                className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/30 grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
               >
                 <div className="md:col-span-4">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                    Medication / Generic Name
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Medication
                   </label>
                   <input
                     type="text"
                     value={rx.medicationName}
                     onChange={(e) => updatePrescription(rx.id, 'medicationName', e.target.value)}
-                    placeholder="e.g. Lisinopril, Metformin"
+                    placeholder="e.g. Lisinopril"
                     className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                     Dosage
                   </label>
                   <input
@@ -371,21 +569,20 @@ function ConsultationContent() {
                 </div>
 
                 <div className="md:col-span-3">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                    Frequency & Administration
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Frequency
                   </label>
                   <input
                     type="text"
                     value={rx.frequency}
                     onChange={(e) => updatePrescription(rx.id, 'frequency', e.target.value)}
-                    placeholder="Once daily morning"
                     className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                    Days
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Duration
                   </label>
                   <input
                     type="number"
@@ -399,8 +596,7 @@ function ConsultationContent() {
                   <button
                     type="button"
                     onClick={() => removePrescriptionItem(rx.id)}
-                    className="no-print p-2 text-rose-500 hover:text-rose-700 transition-colors"
-                    title="Remove item"
+                    className="no-print p-2 text-rose-500 hover:text-rose-700"
                   >
                     🗑️
                   </button>
@@ -423,7 +619,7 @@ function ConsultationContent() {
             </div>
 
             <div className="text-right text-xs text-slate-400">
-              Prescribed by Dr. {appointment.doctorName}, License #MD-84920
+              Authorized by Dr. {appointment.doctorName}, License #MD-84920
             </div>
           </div>
         </div>

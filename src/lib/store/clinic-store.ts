@@ -9,12 +9,14 @@ import {
   MedicalRecord,
   MedicalInvoice,
   ClinicMetrics,
+  LabOrder,
 } from '../types';
 import {
   INITIAL_PATIENTS,
   INITIAL_APPOINTMENTS,
   INITIAL_RECORDS,
   INITIAL_INVOICES,
+  INITIAL_LAB_ORDERS,
 } from '../data/mock-clinical-data';
 
 class ClinicStore {
@@ -22,6 +24,7 @@ class ClinicStore {
   private appointments: Appointment[] = [...INITIAL_APPOINTMENTS];
   private records: MedicalRecord[] = [...INITIAL_RECORDS];
   private invoices: MedicalInvoice[] = [...INITIAL_INVOICES];
+  private labOrders: LabOrder[] = [...INITIAL_LAB_ORDERS];
 
   // --- PATIENT REGISTRY ---
   public listPatients(query?: string): Patient[] {
@@ -170,16 +173,52 @@ class ClinicStore {
     return inv;
   }
 
+  // --- LAB ORDERS & DIAGNOSTIC REQUESTS (EPIC ORDERS BENCHMARK) ---
+  public listLabOrders(patientId?: string): LabOrder[] {
+    if (patientId) {
+      return this.labOrders.filter((l) => l.patientId === patientId);
+    }
+    return [...this.labOrders];
+  }
+
+  public createLabOrder(dto: {
+    appointmentId?: string;
+    patientId: string;
+    patientName: string;
+    testName: string;
+    category: LabOrder['category'];
+    urgency: LabOrder['urgency'];
+    orderedByDoctor: string;
+    referenceRange?: string;
+  }): LabOrder {
+    const newOrder: LabOrder = {
+      ...dto,
+      id: `LAB-${Math.floor(3020 + Math.random() * 6900)}`,
+      status: 'ORDERED',
+      orderedAt: new Date().toISOString(),
+    };
+    this.labOrders.unshift(newOrder);
+    return newOrder;
+  }
+
+  public updateLabOrder(id: string, updates: Partial<LabOrder>): LabOrder {
+    const order = this.labOrders.find((l) => l.id === id);
+    if (!order) throw new Error(`Lab order ${id} not found`);
+    Object.assign(order, updates);
+    return order;
+  }
+
   // --- CLINIC TELEMETRY & METRICS ---
   public getMetrics(): ClinicMetrics {
-    const today = new Date().toISOString().split('T')[0];
-
     const appointmentsToday = this.appointments.length;
     const inWaitingRoom = this.appointments.filter(
       (a) => a.status === 'CONFIRMED' || a.status === 'SCHEDULED'
     ).length;
     const completedConsultations = this.appointments.filter(
       (a) => a.status === 'COMPLETED'
+    ).length;
+    const pendingLabOrders = this.labOrders.filter(
+      (l) => l.status !== 'COMPLETED'
     ).length;
 
     const todayRevenue = this.invoices
@@ -191,6 +230,7 @@ class ClinicStore {
       appointmentsToday,
       inWaitingRoom,
       completedConsultations,
+      pendingLabOrders,
       todayRevenue: Math.round(todayRevenue * 100) / 100,
       recentAppointments: this.appointments.slice(0, 6),
     };
